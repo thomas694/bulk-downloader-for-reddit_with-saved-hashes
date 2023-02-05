@@ -238,6 +238,10 @@ The following options apply only to the `download` command. This command downloa
 - `--search-existing`
     - This will make the BDFR compile the hashes for every file in `directory`
     - The hashes are used to remove duplicates if `--no-dupes` is supplied or make hard links if `--make-hard-links` is supplied
+- `--keep-hashes`
+    - This will save the hashes in a file `hash_list.json` in `directory` and load hashes from it if found
+    - The parameter `--search-existing` will only scan files not yet in the loaded list
+    - Do not run multiple instances of BDFR in `directory` when using this option
 - `--file-scheme`
     - Sets the scheme for files
     - Default is `{REDDITOR}_{TITLE}_{POSTID}`

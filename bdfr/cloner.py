@@ -31,3 +31,4 @@ class RedditCloner(RedditDownloader, Archiver):
                 logger.error(f"The submission after {submission.id} failed to download due to a PRAW exception: {e}")
                 logger.debug("Waiting 60 seconds to continue")
                 sleep(60)
+        self.hash_list_save(self.download_directory);

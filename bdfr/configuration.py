@@ -37,6 +37,7 @@ class Configuration(Namespace):
         self.saved: bool = False
         self.search: Optional[str] = None
         self.search_existing: bool = False
+        self.keep_hashes: bool = False
         self.skip: list[str] = []
         self.skip_domain: list[str] = []
         self.skip_subreddit: list[str] = []
