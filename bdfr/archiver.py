@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import hashlib
+import io
 import json
 import logging
 import re
@@ -23,6 +25,13 @@ from bdfr.exceptions import ArchiverError
 from bdfr.resource import Resource
 
 logger = logging.getLogger(__name__)
+
+
+def _calc_string_hash(content: str):
+    md5_hash = hashlib.md5()
+    md5_hash.update(bytes(content, 'UTF-8'))
+    hash = md5_hash.hexdigest()
+    return hash
 
 
 class Archiver(RedditConnector):
@@ -53,6 +62,8 @@ class Archiver(RedditConnector):
                 logger.error(f"The submission after {submission.id} failed to download due to a PRAW exception: {e}")
                 logger.debug("Waiting 60 seconds to continue")
                 sleep(60)
+        if self.args.keep_hashes:
+            self._hash_list_save()
 
     def get_submissions_from_link(self) -> list[list[praw.models.Submission]]:
         supplied_submissions = []
@@ -96,7 +107,6 @@ class Archiver(RedditConnector):
             self._write_entry_yaml(archive_entry)
         else:
             raise ArchiverError(f"Unknown format {self.args.format} given")
-        logger.info(f"Record for entry item {praw_item.id} written to disk")
 
     def _write_entry_json(self, entry: BaseArchiveEntry):
         resource = Resource(entry.source, "", lambda: None, ".json")
@@ -115,6 +125,16 @@ class Archiver(RedditConnector):
 
     def _write_content_to_disk(self, resource: Resource, content: str):
         file_path = self.file_name_formatter.format_path(resource, self.download_directory)
+        
+        if self.args.keep_hashes:
+            hash = _calc_string_hash(content)
+            if str(file_path) in self.master_file_list:
+                if hash == self.master_file_list[str(file_path)]:
+                    logger.debug(f"{resource.extension[1:].upper()} for {resource.source_submission.id} already saved before")
+                    return
+            self.master_hash_list[hash] = file_path
+            self.master_file_list[str(file_path)] = hash
+
         file_path.parent.mkdir(exist_ok=True, parents=True)
         with Path(file_path).open(mode="w", encoding="utf-8") as file:
             logger.debug(
@@ -122,3 +142,4 @@ class Archiver(RedditConnector):
                 f" format at {file_path}"
             )
             file.write(content)
+        logger.info(f"Record for entry item {resource.source_submission.id} written to disk")

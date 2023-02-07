@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import hashlib
-import json
 import logging.handlers
 import os
 import time
 from collections.abc import Iterable
 from datetime import datetime
-from multiprocessing import Pool
 from pathlib import Path
 from time import sleep
 
@@ -25,25 +22,9 @@ from bdfr.site_downloaders.download_factory import DownloadFactory
 logger = logging.getLogger(__name__)
 
 
-def _calc_hash(existing_file: Path):
-    chunk_size = 1024 * 1024
-    md5_hash = hashlib.md5()
-    with existing_file.open("rb") as file:
-        chunk = file.read(chunk_size)
-        while chunk:
-            md5_hash.update(chunk)
-            chunk = file.read(chunk_size)
-    file_hash = md5_hash.hexdigest()
-    return existing_file, file_hash
-
-
 class RedditDownloader(RedditConnector):
     def __init__(self, args: Configuration, logging_handlers: Iterable[logging.Handler] = ()):
         super(RedditDownloader, self).__init__(args, logging_handlers)
-        if self.args.search_existing:
-            self.master_hash_list = self.scan_existing_files(self.download_directory, self.args.keep_hashes)
-        elif self.args.keep_hashes:
-            self.master_hash_list = self._load_hash_list(self.download_directory)
 
     def download(self):
         for generator in self.reddit_lists:
@@ -58,7 +39,7 @@ class RedditDownloader(RedditConnector):
                 logger.debug("Waiting 60 seconds to continue")
                 sleep(60)
         if self.args.keep_hashes:
-            self._save_hash_list(self.download_directory, self.master_hash_list)
+            self._hash_list_save()
 
     def _download_submission(self, submission: praw.models.Submission):
         if submission.id in self.excluded_submission_ids:
@@ -115,7 +96,7 @@ class RedditDownloader(RedditConnector):
             return
         for destination, res in self.file_name_formatter.format_resource_paths(content, self.download_directory):
             if destination.exists():
-                logger.debug(f"File {destination} from submission {submission.id} already exists, continuing")
+                logger.debug(f"File {destination} from submission {submission.id} in {submission.subreddit.display_name} already exists, continuing")
                 continue
             elif not self.download_filter.check_resource(res):
                 logger.debug(f"Download filter removed {submission.id} file with URL {submission.url}")
@@ -148,6 +129,7 @@ class RedditDownloader(RedditConnector):
                 with destination.open("wb") as file:
                     file.write(res.content)
                 logger.debug(f"Written file to {destination}")
+                logger.info(f"Downloaded submission {submission.id} from {submission.subreddit.display_name}")
             except OSError as e:
                 logger.exception(e)
                 logger.error(f"Failed to write file in submission {submission.id} to {destination}: {e}")
@@ -156,58 +138,3 @@ class RedditDownloader(RedditConnector):
             os.utime(destination, (creation_time, creation_time))
             self.master_hash_list[resource_hash] = destination
             logger.debug(f"Hash added to master list: {resource_hash}")
-        logger.info(f"Downloaded submission {submission.id} from {submission.subreddit.display_name}")
-
-    def hash_list_save(self, directory: Path):
-        if self.args.keep_hashes:
-            self._save_hash_list(directory, self.master_hash_list)
-
-    @staticmethod
-    def scan_existing_files(directory: Path, keep_hashes: bool) -> dict[str, Path]:
-        hash_list_loaded = {}
-        if keep_hashes:
-            hash_list_loaded = RedditDownloader._load_hash_list(directory)
-        files = []
-        for (dirpath, _dirnames, filenames) in os.walk(directory):
-            files.extend([Path(dirpath, file) for file in filenames])
-        if keep_hashes:
-            files_new = list()
-            hash_list_loaded_values = dict([str(value), 0] for value in hash_list_loaded.values())
-            for file in files:
-                if str(file) not in hash_list_loaded_values:
-                    files_new.append(file)
-            files = []
-            files.extend(files_new)
-        logger.info(f"Calculating hashes for {len(files)} files")
-
-        pool = Pool(15)
-        results = pool.map(_calc_hash, files)
-        pool.close()
-
-        hash_list = {res[1]: res[0] for res in results}
-        if keep_hashes:
-            hash_list_loaded.update(hash_list)
-            hash_list = hash_list_loaded
-        return hash_list
-
-    @staticmethod
-    def _load_hash_list(directory: Path) -> dict[str, Path]:
-        fn = os.path.join(directory, "hash_list.json")
-        hash_list = {}
-        if os.path.isfile(fn):
-            with open(fn) as fp:
-                dict_json = json.load(fp)
-            for x in dict_json:
-                hash_list[x] = Path(dict_json[x])
-        logger.info(f"Loaded {len(hash_list)} hashes")
-        return hash_list
-
-    @staticmethod
-    def _save_hash_list(directory: Path, hash_list: dict[str, Path]):
-        dict_json = {}
-        for x in hash_list:
-            dict_json[x] = str(hash_list[x])
-        fn = os.path.join(directory, "hash_list.json")
-        with open(fn, 'w') as fp:
-            json.dump(dict_json, fp)
-        logger.info(f"Saved {len(hash_list)} hashes")

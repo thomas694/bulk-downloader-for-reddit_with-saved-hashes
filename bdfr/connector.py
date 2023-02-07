@@ -2,10 +2,13 @@
 # -*- coding: utf-8 -*-
 
 import configparser
+import hashlib
 import importlib.resources
 import itertools
+import json
 import logging
 import logging.handlers
+import os
 import re
 import shutil
 import socket
@@ -13,6 +16,7 @@ from abc import ABCMeta, abstractmethod
 from collections.abc import Callable, Iterable, Iterator
 from datetime import datetime
 from enum import Enum, auto
+from multiprocessing import Pool
 from pathlib import Path
 from time import sleep
 
@@ -50,6 +54,18 @@ class RedditTypes:
         YEAR = "year"
 
 
+def _calc_hash(existing_file: Path):
+    chunk_size = 1024 * 1024
+    md5_hash = hashlib.md5()
+    with existing_file.open("rb") as file:
+        chunk = file.read(chunk_size)
+        while chunk:
+            md5_hash.update(chunk)
+            chunk = file.read(chunk_size)
+    file_hash = md5_hash.hexdigest()
+    return existing_file, file_hash
+
+
 class RedditConnector(metaclass=ABCMeta):
     def __init__(self, args: Configuration, logging_handlers: Iterable[logging.Handler] = ()):
         self.args = args
@@ -63,6 +79,11 @@ class RedditConnector(metaclass=ABCMeta):
         self._setup_internal_objects()
 
         self.reddit_lists = self.retrieve_reddit_lists()
+
+        if self.args.search_existing:
+            (self.master_hash_list, self.master_file_list) = self.scan_existing_files(self.download_directory, self.args.keep_hashes)
+        elif self.args.keep_hashes:
+            (self.master_hash_list, self.master_file_list) = self._load_hash_list(self.download_directory)
 
     def _setup_internal_objects(self):
 
@@ -455,3 +476,71 @@ class RedditConnector(metaclass=ABCMeta):
                 for line in file:
                     out.append(line.strip())
         return set(out)
+
+    @staticmethod
+    def scan_existing_files(directory: Path, keep_hashes: bool) -> (dict[str, Path], dict[str, str]):
+        if keep_hashes:
+            (hash_list_loaded, filename_list_loaded) = RedditConnector._load_hash_list(directory)
+        files = []
+        for (dirpath, _dirnames, filenames) in os.walk(directory):
+            files.extend([Path(dirpath, file) for file in filenames])
+        if keep_hashes:
+            files_new = list()
+            for file in files:
+                if str(file) not in filename_list_loaded:
+                    files_new.append(file)
+            files = []
+            files.extend(files_new)
+        logger.info(f"Calculating hashes for {len(files)} files")
+
+        pool = Pool(15)
+        results = pool.map(_calc_hash, files)
+        pool.close()
+
+        hash_list = {res[1]: res[0] for res in results}
+        filename_list = {}
+        if keep_hashes:
+            filename_list = {str(res[0]): res[1] for res in results}
+            filename_list_loaded.update(filename_list)
+            filename_list = filename_list_loaded
+            hash_list_loaded.update(hash_list)
+            hash_list = hash_list_loaded
+        return (hash_list, filename_list)
+
+    @staticmethod
+    def _load_hash_list(directory: Path) -> (dict[str, Path], dict[str, str]):
+        fn = os.path.join(directory, "hash_list.json")
+        hash_list = {}
+        if os.path.isfile(fn):
+            with open(fn) as fp:
+                dict_json = json.load(fp)
+            for x in dict_json:
+                hash_list[x] = Path(dict_json[x])
+        logger.info(f"Loaded {len(hash_list)} hashes")
+        
+        fn = os.path.join(directory, "hash_file_list.json")
+        filename_list = {}
+        if os.path.isfile(fn):
+            with open(fn) as fp:
+                filename_list = json.load(fp)
+        logger.info(f"Loaded {len(filename_list)} file entries")
+        
+        return (hash_list, filename_list)
+
+    @staticmethod
+    def _save_hash_list(directory: Path, hash_list: dict[str, Path], filename_list: dict[str, str]):
+        dict_json = {}
+        for x in hash_list:
+            dict_json[x] = str(hash_list[x])
+        fn = os.path.join(directory, "hash_list.json")
+        with open(fn, 'w') as fp:
+            json.dump(dict_json, fp)
+        logger.info(f"Saved {len(hash_list)} hashes")
+
+        fn = os.path.join(directory, "hash_file_list.json")
+        with open(fn, 'w') as fp:
+            json.dump(filename_list, fp)
+        logger.info(f"Saved {len(filename_list)} file entries")
+
+    def _hash_list_save(self):
+        RedditConnector._save_hash_list(self.download_directory, self.master_hash_list, self.master_file_list)
