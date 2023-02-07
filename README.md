@@ -1,3 +1,35 @@
+## Notes
+
+This version is always the original version plus the two branches [new-option-to-reuse-hashes](../../commits/new-option-to-save-hashes) and [use-hashes-for-metadata-too](../../commits/use-hashes-for-metadata-too).
+It behaves exactly like the original version if you ommit the new option.
+But compare your use case before using this version. If you don't need this new option just use the [original version](https://github.com/aliparlakci/bulk-downloader-for-reddit).
+
+### Use Case
+
+I have a list of subreddits which I want to update regularly to get new submissions. Old submissions remain in the folder and new ones are added by the current run.
+
+Although duplicate media files cannot be detected before downloading (by Reddits nature and the BDfR app) I don't like new files with same content to be created and therefore use the options `--no-dupes` and `--search-existing`.
+For `--no-dupes` to be efficient the `--search-existing` is needed, but reading and hashing every file in an ever growing data folder over and over again is quite nonsense.
+
+### New Option --keep-hashes
+
+Hence the new option `--keep-hashes` that saves the hashes to two files `hash_list.json` and `hash_file_list.json` for the next run. On the next run they are loaded and updated with newly found files in the folder, if any. So it complements the option `--search-existing` and makes the workflow much more efficient.
+If the contents of your files regularly change outside these runs for any reason, don't use it as it is not searching for modified files locally. If it's an intended one time change you can just drop the two json files and start with a full scan again.
+
+### How to install this version?
+
+Follow the steps in the first two boxes of the official documentation ["Preparing the environment for development"](docs/CONTRIBUTING.md#preparing-the-environment-for-development).
+If you are familiar with git or an alternative use "git clone" else skip the first line and extract the files from the zip file downloaded here.
+
+### How to update this version?
+
+Each time you want to update your version just replace the files in your folder, either with git or a newly downloaded zip file.
+
+<br><br>
+(original)
+
+---
+
 # Bulk Downloader for Reddit
 
 [![PyPI Status](https://img.shields.io/pypi/status/bdfr?logo=PyPI)](https://pypi.python.org/pypi/bdfr)
