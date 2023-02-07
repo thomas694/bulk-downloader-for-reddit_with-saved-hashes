@@ -53,6 +53,7 @@ _downloader_options = [
     click.option("--max-wait-time", type=int, default=None),
     click.option("--no-dupes", is_flag=True, default=None),
     click.option("--search-existing", is_flag=True, default=None),
+    click.option("--keep-hashes", is_flag=True, default=None),
     click.option("--skip", default=None, multiple=True),
     click.option("--skip-domain", default=None, multiple=True),
     click.option("--skip-subreddit", default=None, multiple=True),
