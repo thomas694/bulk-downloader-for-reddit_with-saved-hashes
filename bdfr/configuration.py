@@ -57,8 +57,10 @@ class Configuration(Namespace):
 
         # Archiver-specific options
         self.all_comments = False
+        self.no_comments = False
         self.format = "json"
         self.comment_context: bool = False
+        self.ignore_score: bool = False
 
     def process_click_arguments(self, context: click.Context):
         if context.params.get("opts") is not None:
