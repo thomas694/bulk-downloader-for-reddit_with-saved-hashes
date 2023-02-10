@@ -242,6 +242,7 @@ class RedditConnector(metaclass=ABCMeta):
             log_path,
             mode="a",
             backupCount=backup_count,
+            encoding="utf-8"
         )
         if log_path.exists():
             try:
@@ -426,7 +427,8 @@ class RedditConnector(metaclass=ABCMeta):
 
     def create_file_name_formatter(self) -> FileNameFormatter:
         return FileNameFormatter(
-            self.args.file_scheme, self.args.folder_scheme, self.args.time_format, self.args.filename_restriction_scheme
+            self.args.file_scheme, self.args.folder_scheme, self.args.time_format, self.args.filename_restriction_scheme,
+            self.args.filename_character_set
         )
 
     def create_time_filter(self) -> RedditTypes.TimeType:

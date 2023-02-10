@@ -147,6 +147,13 @@ The following options are common between both the `archive` and `download` comma
     - Can be: `windows`, `linux`
     - Turns off the OS detection and specifies which system to use when making filenames
     - See [Filesystem Restrictions](#filesystem-restrictions)
+- `--filename-character-set`
+    - This option defines the character set of the filenames
+    - It is only applied on windows systems or with restriction scheme set to windows
+    - The following options are available:
+        - ascii (default)
+        - unicode
+        - unicode_no_emojis
 - `--ignore-user`
     - This will add a user to ignore
     - Can be specified multiple times
