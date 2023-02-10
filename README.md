@@ -292,6 +292,11 @@ The following options are for the `archive` command specifically.
 - `--comment-context`
     - This option will, instead of downloading an individual comment, download the submission that comment is a part of
     - May result in a longer run time as it retrieves much more data
+- `--ignore-score`
+    - This option will ignore the values "score" and "upvote-ratio" for hashing, resulting in less updates of the submission data files
+    - Scores on comments, new comments and so on are still counted as update and the new data is written to disk
+- `--no-comments`
+    - Leaves out all the comments of a submission
 
 ### Cloner Options
 

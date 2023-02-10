@@ -86,9 +86,9 @@ class Archiver(RedditConnector):
         return results
 
     @staticmethod
-    def _pull_lever_entry_factory(praw_item: Union[praw.models.Submission, praw.models.Comment]) -> BaseArchiveEntry:
+    def _pull_lever_entry_factory(praw_item: Union[praw.models.Submission, praw.models.Comment], no_comments: bool) -> BaseArchiveEntry:
         if isinstance(praw_item, praw.models.Submission):
-            return SubmissionArchiveEntry(praw_item)
+            return SubmissionArchiveEntry(praw_item, no_comments)
         elif isinstance(praw_item, praw.models.Comment):
             return CommentArchiveEntry(praw_item)
         else:
@@ -98,36 +98,49 @@ class Archiver(RedditConnector):
         if self.args.comment_context and isinstance(praw_item, praw.models.Comment):
             logger.debug(f"Converting comment {praw_item.id} to submission {praw_item.submission.id}")
             praw_item = praw_item.submission
-        archive_entry = self._pull_lever_entry_factory(praw_item)
+        entry = self._pull_lever_entry_factory(praw_item, self.args.no_comments)
         if self.args.format == "json":
-            self._write_entry_json(archive_entry)
+            content = json.dumps(entry.compile())
         elif self.args.format == "xml":
-            self._write_entry_xml(archive_entry)
+            content = dict2xml.dict2xml(entry.compile(), wrap="root")
         elif self.args.format == "yaml":
-            self._write_entry_yaml(archive_entry)
+            content = yaml.safe_dump(entry.compile())
         else:
             raise ArchiverError(f"Unknown format {self.args.format} given")
+        if self.args.ignore_score:
+            praw_item.score = 0
+            if isinstance(praw_item, praw.models.Submission):
+                praw_item.upvote_ratio = 0
+            entry = self._pull_lever_entry_factory(praw_item, self.args.no_comments)
+        if self.args.format == "json":
+            content = json.dumps(entry.compile()) if self.args.ignore_score else content
+            hash = _calc_string_hash(content) if self.args.keep_hashes else None
+            self._write_entry_json(entry, content, hash)
+        elif self.args.format == "xml":
+            content = dict2xml.dict2xml(entry.compile(), wrap="root") if self.args.ignore_score else content
+            hash = _calc_string_hash(content) if self.args.keep_hashes else None
+            self._write_entry_xml(entry, content, hash)
+        elif self.args.format == "yaml":
+            content = yaml.safe_dump(entry.compile()) if self.args.ignore_score else content
+            hash = _calc_string_hash(content) if self.args.keep_hashes else None
+            self._write_entry_yaml(entry, content, hash)
 
-    def _write_entry_json(self, entry: BaseArchiveEntry):
+    def _write_entry_json(self, entry: BaseArchiveEntry, content: str, hash: str):
         resource = Resource(entry.source, "", lambda: None, ".json")
-        content = json.dumps(entry.compile())
-        self._write_content_to_disk(resource, content)
+        self._write_content_to_disk(resource, content, hash)
 
-    def _write_entry_xml(self, entry: BaseArchiveEntry):
+    def _write_entry_xml(self, entry: BaseArchiveEntry, content: str, hash: str):
         resource = Resource(entry.source, "", lambda: None, ".xml")
-        content = dict2xml.dict2xml(entry.compile(), wrap="root")
-        self._write_content_to_disk(resource, content)
+        self._write_content_to_disk(resource, content, hash)
 
-    def _write_entry_yaml(self, entry: BaseArchiveEntry):
+    def _write_entry_yaml(self, entry: BaseArchiveEntry, content: str, hash: str):
         resource = Resource(entry.source, "", lambda: None, ".yaml")
-        content = yaml.safe_dump(entry.compile())
-        self._write_content_to_disk(resource, content)
+        self._write_content_to_disk(resource, content, hash)
 
-    def _write_content_to_disk(self, resource: Resource, content: str):
+    def _write_content_to_disk(self, resource: Resource, content: str, hash: str):
         file_path = self.file_name_formatter.format_path(resource, self.download_directory)
         
         if self.args.keep_hashes:
-            hash = _calc_string_hash(content)
             if str(file_path) in self.master_file_list:
                 if hash == self.master_file_list[str(file_path)]:
                     logger.debug(f"{resource.extension[1:].upper()} for {resource.source_submission.id} already saved before")
