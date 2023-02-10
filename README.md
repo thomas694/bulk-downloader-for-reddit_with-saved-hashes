@@ -1,8 +1,13 @@
 ## Notes
 
-This version is always the original version plus the two branches [new-option-to-reuse-hashes](../../commits/new-option-to-save-hashes) and [use-hashes-for-metadata-too](../../commits/use-hashes-for-metadata-too).
-It behaves exactly like the original version if you ommit the new option.
-But compare your use case before using this version. If you don't need this new option just use the [original version](https://github.com/aliparlakci/bulk-downloader-for-reddit).
+This version is always the original version plus the following additions:
+  - [new-option-to-reuse-hashes](../../commits/new-option-to-save-hashes)
+  - [use-hashes-for-metadata-too](../../commits/use-hashes-for-metadata-too)
+  - [new-options-ignore-score-and-no-comments](../../new-options-ignore-score-and-no-comments)
+  - [new-option-filename-character-set](../../new-option-filename-character-set)
+
+It behaves exactly like the original version if you ommit the new options.
+But compare your use case before using this version. If you don't need this new options just use the [original version](https://github.com/aliparlakci/bulk-downloader-for-reddit).
 
 ### Use Case
 
@@ -11,10 +16,31 @@ I have a list of subreddits which I want to update regularly to get new submissi
 Although duplicate media files cannot be detected before downloading (by Reddits nature and the BDfR app) I don't like new files with same content to be created and therefore use the options `--no-dupes` and `--search-existing`.
 For `--no-dupes` to be efficient the `--search-existing` is needed, but reading and hashing every file in an ever growing data folder over and over again is quite nonsense.
 
-### New Option --keep-hashes
+I'm also not interested in totally up-to-date values for `score` and `upvote_ratio`, hence the new parameter `--ignore-score`. Additionally I'm only interested in the main submission and not any comments, hence the new parameter `--no-comments`.
+
+I don't share the assumption that Windows cannot handle unicode filenames properly. Therefore I give Windows users unicode characters and optionally emojis back. The new option `--filename-character-set` was born.
+
+### New Options
+
+#### --keep-hashes
 
 Hence the new option `--keep-hashes` that saves the hashes to two files `hash_list.json` and `hash_file_list.json` for the next run. On the next run they are loaded and updated with newly found files in the folder, if any. So it complements the option `--search-existing` and makes the workflow much more efficient.
 If the contents of your files regularly change outside these runs for any reason, don't use it as it is not searching for modified files locally. If it's an intended one time change you can just drop the two json files and start with a full scan again.
+
+#### --ignore-score
+
+  - This option will ignore the values `score` and `upvote-ratio` for hashing, resulting in less updates of the submission data files
+  - Scores on comments, new comments and so on are still counted as update and the new data is written to disk
+
+#### --no-comments
+
+  - Leaves out all the comments of a submission
+
+#### --filename-character-set
+
+  - This option defines the character set of the filenames
+  - It is only applied on windows systems or with restriction scheme set to windows
+  - The following options are available: ascii (default), unicode and unicode_no_emojis
 
 ### How to install this version?
 
