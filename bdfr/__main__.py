@@ -25,6 +25,7 @@ _common_options = [
     click.option("--exclude-id-file", default=None, multiple=True),
     click.option("--file-scheme", default=None, type=str),
     click.option("--filename-restriction-scheme", type=click.Choice(("linux", "windows")), default=None),
+    click.option("--filename-character-set", type=click.Choice(("ascii", "unicode", "unicode_no_emojis")), default=None),
     click.option("--folder-scheme", default=None, type=str),
     click.option("--ignore-user", type=str, multiple=True, default=None),
     click.option("--include-id-file", multiple=True, default=None),

@@ -9,8 +9,8 @@ import subprocess
 from pathlib import Path
 from typing import Optional, Union
 
+import emoji
 from praw.models import Comment, Submission
-
 from bdfr.exceptions import BulkDownloaderException
 from bdfr.resource import Resource
 
@@ -36,6 +36,7 @@ class FileNameFormatter:
         directory_format_string: str,
         time_format_string: str,
         restriction_scheme: Optional[str] = None,
+        filename_character_set = None
     ):
         if not self.validate_string(file_format_string):
             raise BulkDownloaderException(f'"{file_format_string}" is not a valid format string')
@@ -47,6 +48,7 @@ class FileNameFormatter:
             self.max_path = self.WINDOWS_MAX_PATH_LENGTH
         else:
             self.max_path = self.find_max_path_length()
+        self.filename_character_set = filename_character_set
 
     def _format_name(self, submission: Union[Comment, Submission], format_string: str) -> str:
         if isinstance(submission, Submission):
@@ -67,10 +69,10 @@ class FileNameFormatter:
 
         if self.restiction_scheme is None:
             if platform.system() == "Windows":
-                result = FileNameFormatter._format_for_windows(result)
+                result = FileNameFormatter._format_for_windows(result, self.filename_character_set)
         elif self.restiction_scheme == "windows":
             logger.debug("Forcing Windows-compatible filenames")
-            result = FileNameFormatter._format_for_windows(result)
+            result = FileNameFormatter._format_for_windows(result, self.filename_character_set)
         return result
 
     @staticmethod
@@ -214,14 +216,22 @@ class FileNameFormatter:
             return False
 
     @staticmethod
-    def _format_for_windows(input_string: str) -> str:
+    def _format_for_windows(input_string: str, filename_character_set) -> str:
         invalid_characters = r'<>:"\/|?*'
         for char in invalid_characters:
             input_string = input_string.replace(char, "")
-        input_string = FileNameFormatter._strip_emojis(input_string)
+        if filename_character_set in [None, "ascii"]:
+            input_string = FileNameFormatter._strip_non_ascii(input_string)
+        elif filename_character_set == "unicode_no_emojis":
+            input_string = FileNameFormatter._strip_emojis(input_string)
         return input_string
 
     @staticmethod
     def _strip_emojis(input_string: str) -> str:
+        result = emoji.replace_emoji(input_string, replace='')
+        return result
+
+    @staticmethod
+    def _strip_non_ascii(input_string: str) -> str:
         result = input_string.encode("ascii", errors="ignore").decode("utf-8")
         return result

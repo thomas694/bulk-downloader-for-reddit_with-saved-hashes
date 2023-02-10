@@ -31,6 +31,7 @@ dependencies = [
     "pyyaml>=5.4.1",
     "requests>=2.25.1",
     "yt-dlp>=2022.11.11",
+	"emoji>=2.2.0"
 ]
 dynamic = ["version"]
 
