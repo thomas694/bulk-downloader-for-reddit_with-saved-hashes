@@ -224,6 +224,7 @@ class FileNameFormatter:
             input_string = FileNameFormatter._strip_non_ascii(input_string)
         elif filename_character_set == "unicode_no_emojis":
             input_string = FileNameFormatter._strip_emojis(input_string)
+        input_string = "".join(ch for ch in input_string if ord(ch) > 31 and ord(ch) != 127)
         return input_string
 
     @staticmethod
