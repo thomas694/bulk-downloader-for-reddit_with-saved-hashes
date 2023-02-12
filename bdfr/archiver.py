@@ -111,6 +111,7 @@ class Archiver(RedditConnector):
             praw_item.score = 0
             if isinstance(praw_item, praw.models.Submission):
                 praw_item.upvote_ratio = 0
+                praw_item.num_comments = 0
             entry = self._pull_lever_entry_factory(praw_item, self.args.no_comments)
         if self.args.format == "json":
             content = json.dumps(entry.compile()) if self.args.ignore_score else content
