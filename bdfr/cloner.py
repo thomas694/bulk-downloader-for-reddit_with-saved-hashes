@@ -5,8 +5,8 @@ import logging
 from collections.abc import Iterable
 from time import sleep
 
-import prawcore
 import praw.exceptions
+import prawcore
 
 from bdfr.archiver import Archiver
 from bdfr.configuration import Configuration
