@@ -79,7 +79,7 @@ class Youtube(BaseDownloader):
     @staticmethod
     def get_video_attributes(url: str) -> dict:
         result = Youtube.get_video_data(url)
-        if "ext" in result:
+        if result is not None and "ext" in result:
             return result
         else:
             raise NotADownloadableLinkError(f"Video info extraction failed for {url}")
