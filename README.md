@@ -7,7 +7,7 @@ This version is always the original version plus the following additions:
   - [new-option-filename-character-set](../../new-option-filename-character-set)
 
 It behaves exactly like the original version if you ommit the new options.
-But compare your use case before using this version. If you don't need this new options just use the [original version](https://github.com/aliparlakci/bulk-downloader-for-reddit).
+But compare your use case before using this version. If you don't need these new options just use the [original version](https://github.com/aliparlakci/bulk-downloader-for-reddit).
 
 ### Use Case
 
