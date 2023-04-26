@@ -61,11 +61,12 @@ class Resource:
     @staticmethod
     def http_download(url: str, download_parameters: dict) -> Optional[bytes]:
         headers = download_parameters.get("headers")
-        current_wait_time = 60
-        if "max_wait_time" in download_parameters:
+        fail_fast = download_parameters.get("fail_fast", False)
+        current_wait_time = 60 if not fail_fast else 5
+        if "max_wait_time" in download_parameters and not fail_fast:
             max_wait_time = download_parameters["max_wait_time"]
         else:
-            max_wait_time = 300
+            max_wait_time = 300 if not fail_fast else 10
         while True:
             try:
                 response = requests.get(url, headers=headers)
@@ -79,9 +80,12 @@ class Resource:
                     )
             except (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError) as e:
                 logger.warning(f"Error occured downloading from {url}, waiting {current_wait_time} seconds: {e}")
+                if fail_fast and ("[Errno 11001]" in str(e) or "[WinError 10061]" in str(e)):
+                    #getaddrinfo failed #No connection could be made because the target machine actively refused it
+                    raise
                 time.sleep(current_wait_time)
                 if current_wait_time < max_wait_time:
-                    current_wait_time += 60
+                    current_wait_time += 60 if not fail_fast else 5
                 else:
                     logger.error(f"Max wait time exceeded for resource at url {url}")
                     raise
