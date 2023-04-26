@@ -42,6 +42,10 @@ If the contents of your files regularly change outside these runs for any reason
   - It is only applied on windows systems or with restriction scheme set to windows
   - The following options are available: ascii (default), unicode and unicode_no_emojis
 
+#### --fail-fast
+
+When a download error occurs, it will only wait 5 seconds and do one retry (by default it waits 60 seconds multiple times). In case of a "[Errno 11001] getaddrinfo failed" or "[WinError 10061] No connection could be made because the target machine actively refused it" error, it fails immediately.
+
 ### How to install this version?
 
 Follow the steps in the first two boxes of the official documentation ["Preparing the environment for development"](docs/CONTRIBUTING.md#preparing-the-environment-for-development).
@@ -282,6 +286,9 @@ The following options are common between both the `archive` and `download` comma
     - When using `--authenticate`, `--user me` can be used to refer to the authenticated user
     - Can be specified multiple times for multiple users
         - If downloading a multireddit, only one user can be specified
+- `--fail-fast`
+    - This waits only 5 seconds after a download error and does 1 retry
+    - On errors "[Errno 11001]" and "[WinError 10061]" it fails immediately
 - `-v, --verbose`
     - Increases the verbosity of the program
     - Can be specified multiple times

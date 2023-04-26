@@ -37,6 +37,7 @@ _common_options = [
     click.option("--subscribed", is_flag=True, default=None),
     click.option("--time-format", type=str, default=None),
     click.option("--upvoted", is_flag=True, default=None),
+    click.option("--fail-fast", is_flag=True, default=None),
     click.option("-L", "--limit", default=None, type=int),
     click.option("-l", "--link", multiple=True, default=None, type=str),
     click.option("-m", "--multireddit", multiple=True, default=None, type=str),

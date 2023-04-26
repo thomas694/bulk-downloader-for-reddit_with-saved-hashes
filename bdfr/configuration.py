@@ -53,6 +53,7 @@ class Configuration(Namespace):
         self.time: str = "all"
         self.time_format = None
         self.upvoted: bool = False
+        self.fail_fast: bool = False
         self.user: list[str] = []
         self.verbose: int = 0
 
