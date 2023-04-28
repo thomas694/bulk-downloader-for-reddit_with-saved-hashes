@@ -102,7 +102,7 @@ class RedditConnector(metaclass=ABCMeta):
         self.args.user = list(filter(None, [self.resolve_user_name(user) for user in self.args.user]))
 
         self.excluded_submission_ids = set.union(
-            self.read_id_files(self.args.exclude_id_file),
+            set(self.read_id_files(self.args.exclude_id_file)),
             set(self.args.exclude_id),
         )
 
@@ -467,8 +467,8 @@ class RedditConnector(metaclass=ABCMeta):
             raise errors.BulkDownloaderException(f"Source {subreddit.display_name} is private and cannot be scraped")
 
     @staticmethod
-    def read_id_files(file_locations: list[str]) -> set[str]:
-        out = []
+    def read_id_files(file_locations: list[str]) -> list[str]:
+        out = {}
         for id_file in file_locations:
             id_file = Path(id_file).resolve().expanduser()
             if not id_file.exists():
@@ -476,8 +476,8 @@ class RedditConnector(metaclass=ABCMeta):
                 continue
             with id_file.open("r") as file:
                 for line in file:
-                    out.append(line.strip())
-        return set(out)
+                    out[line.strip()] = None
+        return out.keys()
 
     @staticmethod
     def scan_existing_files(directory: Path, keep_hashes: bool) -> (dict[str, Path], dict[str, str]):
