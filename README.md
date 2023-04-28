@@ -35,6 +35,7 @@ If the contents of your files regularly change outside these runs for any reason
 #### --no-comments
 
   - Leaves out all the comments of a submission
+  - If this option is used, a faster way of submission download will be used that is especially fast if using the `--include-id-file` option.
 
 #### --filename-character-set
 

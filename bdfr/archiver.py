@@ -7,6 +7,7 @@ import json
 import logging
 import re
 from collections.abc import Iterable, Iterator
+from itertools import islice
 from pathlib import Path
 from time import sleep
 from typing import Union
@@ -41,28 +42,30 @@ class Archiver(RedditConnector):
 
     def download(self):
         for generator in self.reddit_lists:
-            try:
-                for submission in generator:
-                    try:
-                        if (submission.author and submission.author.name in self.args.ignore_user) or (
-                            submission.author is None and "DELETED" in self.args.ignore_user
-                        ):
-                            logger.debug(
-                                f"Submission {submission.id} in {submission.subreddit.display_name} skipped due to"
-                                f" {submission.author.name if submission.author else 'DELETED'} being an ignored user"
-                            )
-                            continue
-                        if submission.id in self.excluded_submission_ids:
-                            logger.debug(f"Object {submission.id} in exclusion list, skipping")
-                            continue
-                        logger.debug(f"Attempting to archive submission {submission.id}")
-                        self.write_entry(submission)
-                    except (prawcore.PrawcoreException, praw.exceptions.PRAWException) as e:
-                        logger.error(f"Submission {submission.id} failed to be archived due to a PRAW exception: {e}")
-            except (prawcore.PrawcoreException, praw.exceptions.PRAWException) as e:
-                logger.error(f"The submission after {submission.id} failed to download due to a PRAW exception: {e}")
-                logger.debug("Waiting 60 seconds to continue")
-                sleep(60)
+            for chunk in batched(generator, 100):
+                try:
+                    submissions = self.load_submissions(chunk)
+                    for submission in submissions:
+                        try:
+                            if (submission.author and submission.author.name in self.args.ignore_user) or (
+                                submission.author is None and "DELETED" in self.args.ignore_user
+                            ):
+                                logger.debug(
+                                    f"Submission {submission.id} in {submission.subreddit.display_name} skipped due to"
+                                    f" {submission.author.name if submission.author else 'DELETED'} being an ignored user"
+                                )
+                                continue
+                            if submission.id in self.excluded_submission_ids:
+                                logger.debug(f"Object {submission.id} in exclusion list, skipping")
+                                continue
+                            logger.debug(f"Attempting to archive submission {submission.id}")
+                            self.write_entry(submission)
+                        except (prawcore.PrawcoreException, praw.exceptions.PRAWException) as e:
+                            logger.error(f"Submission {submission.id} failed to be archived due to a PRAW exception: {e}")
+                except (prawcore.PrawcoreException, praw.exceptions.PRAWException) as e:
+                    logger.error(f"The submission after {submission.id} failed to download due to a PRAW exception: {e}")
+                    logger.debug("Waiting 60 seconds to continue")
+                    sleep(60)
         if self.args.keep_hashes:
             self._hash_list_save()
 
@@ -161,3 +164,29 @@ class Archiver(RedditConnector):
             )
             file.write(content)
         logger.info(f"Record for entry item {resource.source_submission.id} written to disk")
+
+    def load_submissions(self, lst: list[praw.models.Submission]) -> list[praw.models.Submission]:
+        if not self.args.no_comments:
+            return lst
+        dic = {}
+        for index, x in enumerate(lst):
+            if not x._fetched:
+                dic[x.id] = index
+        list_ids = dic.keys()
+        list_ids = [id if id.startswith('t3_') else f't3_{id}' for id in list_ids]
+        submissions = self.reddit_instance.info(fullnames=list_ids)
+        for sub in submissions:
+            index = dic.get(sub.id, dic.get(sub.id[3:]))
+            if not index is None:
+                lst[index] = sub
+        return lst
+
+def batched(iterable, n):
+    "Batch data into lists of length n. The last batch may be shorter."
+    # batched('ABCDEFG', 3) --> ABC DEF G
+    it = iter(iterable)
+    while True:
+        batch = list(islice(it, n))
+        if not batch:
+            return
+        yield batch

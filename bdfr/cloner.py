@@ -8,7 +8,7 @@ from time import sleep
 import praw.exceptions
 import prawcore
 
-from bdfr.archiver import Archiver
+from bdfr.archiver import Archiver, batched
 from bdfr.configuration import Configuration
 from bdfr.downloader import RedditDownloader
 
@@ -21,16 +21,19 @@ class RedditCloner(RedditDownloader, Archiver):
 
     def download(self):
         for generator in self.reddit_lists:
-            try:
-                for submission in generator:
-                    try:
-                        self._download_submission(submission)
-                        self.write_entry(submission)
-                    except (prawcore.PrawcoreException, praw.exceptions.PRAWException) as e:
-                        logger.error(f"Submission {submission.id} failed to be cloned due to a PRAW exception: {e}")
-            except (prawcore.PrawcoreException, praw.exceptions.PRAWException) as e:
-                logger.error(f"The submission after {submission.id} failed to download due to a PRAW exception: {e}")
-                logger.debug("Waiting 60 seconds to continue")
-                sleep(60)
+            for chunk in batched(generator, 100):
+                try:
+                    submissions = self.load_submissions(chunk)
+                    for submission in submissions:
+                        try:
+                            self._download_submission(submission)
+                            if "Reddit_imgur" not in str(self.download_directory) or "imgur.com" in submission.url:
+                                self.write_entry(submission)
+                        except (prawcore.PrawcoreException, praw.exceptions.PRAWException) as e:
+                            logger.error(f"Submission {submission.id} failed to be cloned due to a PRAW exception: {e}")
+                except (prawcore.PrawcoreException, praw.exceptions.PRAWException) as e:
+                    logger.error(f"The submission after {submission.id} failed to download due to a PRAW exception: {e}")
+                    logger.debug("Waiting 60 seconds to continue")
+                    sleep(60)
         if self.args.keep_hashes:
             self._hash_list_save()
