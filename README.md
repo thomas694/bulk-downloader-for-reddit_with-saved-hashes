@@ -42,6 +42,10 @@ If the contents of your files regularly change outside these runs for any reason
   - It is only applied on windows systems or with restriction scheme set to windows
   - The following options are available: ascii (default), unicode and unicode_no_emojis
 
+#### --imgur-originals
+
+  - This option downloads the original links (e.g. GIFs) instead of converted mp4 files.
+
 ### How to install this version?
 
 Follow the steps in the first two boxes of the official documentation ["Preparing the environment for development"](docs/CONTRIBUTING.md#preparing-the-environment-for-development).
@@ -341,6 +345,8 @@ The following options apply only to the `download` command. This command downloa
     - This skips all submissions which have lower than specified upvote ratio
 - `--max-score-ratio`
     - This skips all submissions which have higher than specified upvote ratio
+- `--imgur-originals`
+    - This downloads Imgur originals and no mp4 conversions
 
 ### Archiver Options
 

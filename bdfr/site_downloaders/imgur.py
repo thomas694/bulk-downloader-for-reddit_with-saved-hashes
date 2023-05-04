@@ -7,6 +7,7 @@ from typing import Optional
 
 from praw.models import Submission
 
+from bdfr.configuration import Configuration
 from bdfr.exceptions import SiteDownloaderError
 from bdfr.resource import Resource
 from bdfr.site_authenticator import SiteAuthenticator
@@ -14,22 +15,25 @@ from bdfr.site_downloaders.base_downloader import BaseDownloader
 
 
 class Imgur(BaseDownloader):
-    def __init__(self, post: Submission):
-        super().__init__(post)
+    def __init__(self, post: Submission, args: Configuration):
+        super().__init__(post, args)
         self.raw_data = {}
 
     def find_resources(self, authenticator: Optional[SiteAuthenticator] = None) -> list[Resource]:
-        self.raw_data = self._get_data(self.post.url)
+        if re.search(r".*/i.imgur.com/[^/]*(.jpg|.png|.mp4)$", self.post.url):
+            self.raw_data["link"] = self.post.url.replace("http://", "https://")
+        else:
+            self.raw_data = self._get_data(self.post.url)
 
         out = []
         if "is_album" in self.raw_data:
             for image in self.raw_data["images"]:
-                if "mp4" in image:
+                if not self.args.imgur_originals and "mp4" in image:
                     out.append(Resource(self.post, image["mp4"], Resource.retry_download(image["mp4"])))
                 else:
                     out.append(Resource(self.post, image["link"], Resource.retry_download(image["link"])))
         else:
-            if "mp4" in self.raw_data:
+            if not self.args.imgur_originals and "mp4" in self.raw_data:
                 out.append(Resource(self.post, self.raw_data["mp4"], Resource.retry_download(self.raw_data["mp4"])))
             else:
                 out.append(Resource(self.post, self.raw_data["link"], Resource.retry_download(self.raw_data["link"])))
