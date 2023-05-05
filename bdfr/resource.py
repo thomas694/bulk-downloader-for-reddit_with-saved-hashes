@@ -29,6 +29,9 @@ class Resource:
         if not self.extension:
             self.extension = self._determine_extension()
 
+    def url(self):
+        return self.url
+
     @staticmethod
     def retry_download(url: str) -> Callable:
         return lambda global_params: Resource.http_download(url, global_params)

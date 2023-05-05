@@ -20,17 +20,20 @@ class RedditCloner(RedditDownloader, Archiver):
         super(RedditCloner, self).__init__(args, logging_handlers)
 
     def download(self):
-        for generator in self.reddit_lists:
-            try:
-                for submission in generator:
-                    try:
-                        self._download_submission(submission)
-                        self.write_entry(submission)
-                    except (prawcore.PrawcoreException, praw.exceptions.PRAWException) as e:
-                        logger.error(f"Submission {submission.id} failed to be cloned due to a PRAW exception: {e}")
-            except (prawcore.PrawcoreException, praw.exceptions.PRAWException) as e:
-                logger.error(f"The submission after {submission.id} failed to download due to a PRAW exception: {e}")
-                logger.debug("Waiting 60 seconds to continue")
-                sleep(60)
+        try:
+            for generator in self.reddit_lists:
+                try:
+                    for submission in generator:
+                        try:
+                            self._download_submission(submission)
+                            self.write_entry(submission)
+                        except (prawcore.PrawcoreException, praw.exceptions.PRAWException) as e:
+                            logger.error(f"Submission {submission.id} failed to be cloned due to a PRAW exception: {e}")
+                except (prawcore.PrawcoreException, praw.exceptions.PRAWException) as e:
+                    logger.error(f"The submission after {submission.id} failed to download due to a PRAW exception: {e}")
+                    logger.debug("Waiting 60 seconds to continue")
+                    sleep(60)
+        except Exception as e:
+            logger.error(f"Uncaught exception: {e}")
         if self.args.keep_hashes:
-            self._hash_list_save()
+            self._hash_list_save(False)
