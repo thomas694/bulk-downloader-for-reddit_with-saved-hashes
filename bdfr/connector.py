@@ -81,9 +81,13 @@ class RedditConnector(metaclass=ABCMeta):
         self.reddit_lists = self.retrieve_reddit_lists()
 
         if self.args.search_existing:
-            (self.master_hash_list, self.master_file_list) = self.scan_existing_files(self.download_directory, self.args.keep_hashes)
+            (self.master_hash_list, self.master_file_list, self.master_url_list) = self.scan_existing_files(self.download_directory, self.args.keep_hashes)
         elif self.args.keep_hashes:
-            (self.master_hash_list, self.master_file_list) = self._load_hash_list(self.download_directory)
+            (self.master_hash_list, self.master_file_list, self.master_url_list) = self._load_hash_list(self.download_directory)
+        if self.args.keep_hashes:
+            self.__master_hash_list_cnt = len(self.master_hash_list)
+            self.__master_file_list_cnt = len(self.master_file_list)
+            self.__master_url_list_cnt = len(self.master_url_list)
 
     def _setup_internal_objects(self):
 
@@ -109,6 +113,7 @@ class RedditConnector(metaclass=ABCMeta):
         self.args.link = list(itertools.chain(self.args.link, self.read_id_files(self.args.include_id_file)))
 
         self.master_hash_list = {}
+        self.__master_hash_list_cnt = self.__master_file_list_cnt = self.__master_url_list_cnt = 0
         self.authenticator = self.create_authenticator()
         logger.log(9, "Created site authenticator")
 
@@ -480,9 +485,9 @@ class RedditConnector(metaclass=ABCMeta):
         return out.keys()
 
     @staticmethod
-    def scan_existing_files(directory: Path, keep_hashes: bool) -> (dict[str, Path], dict[str, str]):
+    def scan_existing_files(directory: Path, keep_hashes: bool) -> (dict[str, Path], dict[str, str], dict[str, str]):
         if keep_hashes:
-            (hash_list_loaded, filename_list_loaded) = RedditConnector._load_hash_list(directory)
+            (hash_list_loaded, filename_list_loaded, url_list) = RedditConnector._load_hash_list(directory)
         files = []
         for (dirpath, _dirnames, filenames) in os.walk(directory):
             files.extend([Path(dirpath, file) for file in filenames])
@@ -507,10 +512,14 @@ class RedditConnector(metaclass=ABCMeta):
             filename_list = filename_list_loaded
             hash_list_loaded.update(hash_list)
             hash_list = hash_list_loaded
-        return (hash_list, filename_list)
+            if len(files_new) > 0:
+                RedditConnector._save_hash_list(directory, hash_list, filename_list, url_list)
+        else:
+            url_list = {}
+        return (hash_list, filename_list, url_list)
 
     @staticmethod
-    def _load_hash_list(directory: Path) -> (dict[str, Path], dict[str, str]):
+    def _load_hash_list(directory: Path) -> (dict[str, Path], dict[str, str], dict[str, str]):
         fn = os.path.join(directory, "hash_list.json")
         hash_list = {}
         if os.path.isfile(fn):
@@ -526,23 +535,48 @@ class RedditConnector(metaclass=ABCMeta):
             with open(fn) as fp:
                 filename_list = json.load(fp)
         logger.info(f"Loaded {len(filename_list)} file entries")
+
+        fn = os.path.join(directory, "hash_url_list.json")
+        url_list = {}
+        if os.path.isfile(fn):
+            with open(fn) as fp:
+                url_list = json.load(fp)
+        logger.info(f"Loaded {len(url_list)} url entries")
         
-        return (hash_list, filename_list)
+        return (hash_list, filename_list, url_list)
 
     @staticmethod
-    def _save_hash_list(directory: Path, hash_list: dict[str, Path], filename_list: dict[str, str]):
+    def _save_hash_list(directory: Path, hash_list: dict[str, Path], filename_list: dict[str, str], url_list: dict[str, str]):
         dict_json = {}
         for x in hash_list:
             dict_json[x] = str(hash_list[x])
         fn = os.path.join(directory, "hash_list.json")
+        if os.path.exists(fn):
+            os.replace(fn, fn + '.bak')
         with open(fn, 'w') as fp:
             json.dump(dict_json, fp)
         logger.info(f"Saved {len(hash_list)} hashes")
 
         fn = os.path.join(directory, "hash_file_list.json")
+        if os.path.exists(fn):
+            os.replace(fn, fn + '.bak')
         with open(fn, 'w') as fp:
             json.dump(filename_list, fp)
         logger.info(f"Saved {len(filename_list)} file entries")
 
-    def _hash_list_save(self):
-        RedditConnector._save_hash_list(self.download_directory, self.master_hash_list, self.master_file_list)
+        fn = os.path.join(directory, "hash_url_list.json")
+        if os.path.exists(fn):
+            os.replace(fn, fn + '.bak')
+        with open(fn, 'w') as fp:
+            json.dump(url_list, fp)
+        logger.info(f"Saved {len(url_list)} url entries")
+
+    def _hash_list_save(self, periodic: bool):
+        if (not periodic or periodic and self.args.save_hashes_interval > 0 
+            and (len(self.master_hash_list) - self.__master_hash_list_cnt > self.args.save_hashes_interval or
+                 len(self.master_file_list) - self.__master_file_list_cnt > self.args.save_hashes_interval or
+                 len(self.master_url_list) - self.__master_url_list_cnt > self.args.save_hashes_interval) ):
+            self._save_hash_list(self.download_directory, self.master_hash_list, self.master_file_list, self.master_url_list)
+            self.__master_hash_list_cnt = len(self.master_hash_list)
+            self.__master_file_list_cnt = len(self.master_file_list)
+            self.__master_url_list_cnt = len(self.master_url_list)

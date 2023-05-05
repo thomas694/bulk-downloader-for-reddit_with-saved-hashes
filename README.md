@@ -14,7 +14,7 @@ But compare your use case before using this version. If you don't need these new
 I have a list of subreddits which I want to update regularly to get new submissions. Old submissions remain in the folder and new ones are added by the current run.
 
 Although duplicate media files cannot be detected before downloading (by Reddits nature and the BDfR app) I don't like new files with same content to be created and therefore use the options `--no-dupes` and `--search-existing`.
-For `--no-dupes` to be efficient the `--search-existing` is needed, but reading and hashing every file in an ever growing data folder over and over again is quite nonsense.
+For `--no-dupes` to be efficient the `--search-existing` is needed, but reading and hashing every file in an ever growing data folder over and over again is quite nonsense. The new option `--keep-hashes` saves them for the next run.
 
 I'm also not interested in totally up-to-date values for `score` and `upvote_ratio`, hence the new parameter `--ignore-score`. Additionally I'm only interested in the main submission and not any comments, hence the new parameter `--no-comments`.
 
@@ -24,8 +24,13 @@ I don't share the assumption that Windows cannot handle unicode filenames proper
 
 #### --keep-hashes
 
-Hence the new option `--keep-hashes` that saves the hashes to two files `hash_list.json` and `hash_file_list.json` for the next run. On the next run they are loaded and updated with newly found files in the folder, if any. So it complements the option `--search-existing` and makes the workflow much more efficient.
-If the contents of your files regularly change outside these runs for any reason, don't use it as it is not searching for modified files locally. If it's an intended one time change you can just drop the two json files and start with a full scan again.
+This option saves the hashes to three files `hash_list.json`, `hash_file_list.json` and `hash_url_list.json` for the next run. On the next run they are loaded and updated with newly found files in the folder, if any. So it complements the option `--search-existing` and makes the workflow much more efficient.
+If the contents of your files regularly change outside these runs for any reason, don't use it as it is not searching for modified files locally. If it's an intended one time change you can just drop the two json files `hash_list.json` and `hash_file_list.json` and start with a full scan again.
+Obviously, if you use this option, you shouldn't run multiple instances concurrently to download to the same folder.
+
+#### --save-hashes-interval
+
+By default, the hash list files are loaded at start and written at the end. As BDFR can be unexpectedly interrupted, you can specify after how many added hashes the files are additionally written to disk. Specify a value between 10 and 1000.
 
 #### --ignore-score
 

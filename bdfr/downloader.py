@@ -27,19 +27,22 @@ class RedditDownloader(RedditConnector):
         super(RedditDownloader, self).__init__(args, logging_handlers)
 
     def download(self):
-        for generator in self.reddit_lists:
-            try:
-                for submission in generator:
-                    try:
-                        self._download_submission(submission)
-                    except (prawcore.PrawcoreException, praw.exceptions.PRAWException) as e:
-                        logger.error(f"Submission {submission.id} failed to download due to a PRAW exception: {e}")
-            except (prawcore.PrawcoreException, praw.exceptions.PRAWException) as e:
-                logger.error(f"The submission after {submission.id} failed to download due to a PRAW exception: {e}")
-                logger.debug("Waiting 60 seconds to continue")
-                sleep(60)
+        try:
+            for generator in self.reddit_lists:
+                try:
+                    for submission in generator:
+                        try:
+                            self._download_submission(submission)
+                        except (prawcore.PrawcoreException, praw.exceptions.PRAWException) as e:
+                            logger.error(f"Submission {submission.id} failed to download due to a PRAW exception: {e}")
+                except (prawcore.PrawcoreException, praw.exceptions.PRAWException) as e:
+                    logger.error(f"The submission after {submission.id} failed to download due to a PRAW exception: {e}")
+                    logger.debug("Waiting 60 seconds to continue")
+                    sleep(60)
+        except Exception as e:
+            logger.error(f"Uncaught exception: {e}")
         if self.args.keep_hashes:
-            self._hash_list_save()
+            self._hash_list_save(False)
 
     def _download_submission(self, submission: praw.models.Submission):
         if submission.id in self.excluded_submission_ids:
@@ -101,6 +104,10 @@ class RedditDownloader(RedditConnector):
             elif not self.download_filter.check_resource(res):
                 logger.debug(f"Download filter removed {submission.id} file with URL {submission.url}")
                 continue
+            if self.args.keep_hashes and res.url in self.master_url_list:
+                logger.debug(f"Url {res.url} from submission {submission.id} in {submission.subreddit.display_name} already downloaded before")
+                continue
+
             try:
                 res.download({"max_wait_time": self.args.max_wait_time, "fail_fast": self.args.fail_fast})
             except errors.BulkDownloaderException as e:
@@ -112,8 +119,11 @@ class RedditDownloader(RedditConnector):
             resource_hash = res.hash.hexdigest()
             destination.parent.mkdir(parents=True, exist_ok=True)
             if resource_hash in self.master_hash_list:
+                if self.args.keep_hashes:
+                    self.master_url_list[res.url] = resource_hash
                 if self.args.no_dupes:
                     logger.info(f"Resource hash {resource_hash} from submission {submission.id} downloaded elsewhere")
+                    logger.debug(f"URL: {res.url}")
                     return
                 elif self.args.make_hard_links:
                     try:
@@ -137,4 +147,7 @@ class RedditDownloader(RedditConnector):
             creation_time = time.mktime(datetime.fromtimestamp(submission.created_utc).timetuple())
             os.utime(destination, (creation_time, creation_time))
             self.master_hash_list[resource_hash] = destination
+            if self.args.keep_hashes:
+                self.master_url_list[res.url] = resource_hash
+                self._hash_list_save(True)
             logger.debug(f"Hash added to master list: {resource_hash}")
