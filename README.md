@@ -5,6 +5,8 @@ This version is always the original version plus the following additions:
   - [use-hashes-for-metadata-too](../../commits/use-hashes-for-metadata-too)
   - [new-options-ignore-score-and-no-comments](../../new-options-ignore-score-and-no-comments)
   - [new-option-filename-character-set](../../new-option-filename-character-set)
+  - [fail-fast-or-immediately](../../fail-fast-or-immediately)
+  - [hash-url-list-and-others](../../hash-url-list-and-others)
 
 It behaves exactly like the original version if you ommit the new options.
 But compare your use case before using this version. If you don't need these new options just use the [original version](https://github.com/aliparlakci/bulk-downloader-for-reddit).
