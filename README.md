@@ -312,6 +312,9 @@ The following options apply only to the `download` command. This command downloa
     - This will save the hashes in a file `hash_list.json` in `directory` and load hashes from it if found
     - The parameter `--search-existing` will only scan files not yet in the loaded list
     - Do not run multiple instances of BDFR in `directory` when using this option
+- `--save-hashes-interval`
+    - Sets the interval after how many added hashes the files are written to disk
+    - Specify a value between 10 and 1000
 - `--file-scheme`
     - Sets the scheme for files
     - Default is `{REDDITOR}_{TITLE}_{POSTID}`
