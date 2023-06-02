@@ -337,7 +337,7 @@ class RedditConnector(metaclass=ABCMeta):
     def get_submissions_from_link(self) -> list[list[praw.models.Submission]]:
         supplied_submissions = []
         for sub_id in self.args.link:
-            if len(sub_id) in (6, 7):
+            if re.match(r"^\w+$", sub_id):
                 supplied_submissions.append(self.reddit_instance.submission(id=sub_id))
             else:
                 supplied_submissions.append(self.reddit_instance.submission(url=sub_id))
