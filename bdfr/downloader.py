@@ -82,6 +82,9 @@ class RedditDownloader(RedditConnector):
             return
 
         logger.debug(f"Attempting to download submission {submission.id}")
+        if submission.url is None or submission.url == "":
+            logger.debug("skipped empty url")
+            return
         try:
             downloader_class = DownloadFactory.pull_lever(submission.url)
             downloader = downloader_class(submission)
