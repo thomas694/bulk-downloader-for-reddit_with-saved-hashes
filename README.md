@@ -44,7 +44,11 @@ If the contents of your files regularly change outside these runs for any reason
 
 #### --imgur-originals
 
-  - This option downloads the original links (e.g. GIFs) instead of converted mp4 files.
+  - This option downloads the original links (e.g. GIFs) instead of converted MP4 files.
+
+#### --imgur-fix404
+
+  - If the original downloader fails with a 404, this option tries to download the GIF/MP4 directly.
 
 ### How to install this version?
 

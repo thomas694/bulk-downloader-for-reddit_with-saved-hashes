@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import json
+import logging
 import re
+import urllib
 from typing import Optional
 
 from praw.models import Submission
@@ -12,6 +14,8 @@ from bdfr.exceptions import SiteDownloaderError
 from bdfr.resource import Resource
 from bdfr.site_authenticator import SiteAuthenticator
 from bdfr.site_downloaders.base_downloader import BaseDownloader
+
+logger = logging.getLogger(__name__.replace("site_downloaders", ""))
 
 
 class Imgur(BaseDownloader):
@@ -23,7 +27,27 @@ class Imgur(BaseDownloader):
         if re.search(r".*/i.imgur.com/[^/]*(.jpg|.png|.mp4)$", self.post.url):
             self.raw_data["link"] = self.post.url.replace("http://", "https://")
         else:
-            self.raw_data = self._get_data(self.post.url)
+            try:
+                self.raw_data = self._get_data(self.post.url)
+            except Exception as e:
+                if (self.args.imgur_fix404 and
+                        str(e).startswith("Server responded with 404 to") and
+                        re.search(r".*(.gif|.gifv)$", self.post.url)):
+                    logger.debug(f"{e}")
+                    out = []
+                    if re.search(r".*(.gifv)$", self.post.url):
+                        bytes = urllib.request.urlopen(self.post.url[:-1]).read(3)
+                        if not self.args.imgur_originals or bytes == b"\xff\xd8\xff":
+                            logger.debug(f"using {self.post.url[:-4]}mp4")
+                            out.append(Resource(self.post, self.post.url[:-4] + "mp4", Resource.retry_download(self.post.url[:-4] + "mp4")))
+                        else:
+                            logger.debug(f"using {self.post.url[:-1]}")
+                            out.append(Resource(self.post, self.post.url[:-1], Resource.retry_download(self.post.url[:-1])))
+                    else:
+                        logger.debug(f"using {self.post.url}")
+                        out.append(Resource(self.post, self.post.url, Resource.retry_download(self.post.url)))
+                    return out
+                raise
 
         out = []
         if "is_album" in self.raw_data:

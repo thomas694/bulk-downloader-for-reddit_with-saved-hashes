@@ -47,6 +47,7 @@ class Configuration(Namespace):
         self.min_score_ratio = None
         self.max_score_ratio = None
         self.imgur_originals: bool = False
+        self.imgur_fix404: bool = False
         self.sort: str = "hot"
         self.submitted: bool = False
         self.subscribed: bool = False
