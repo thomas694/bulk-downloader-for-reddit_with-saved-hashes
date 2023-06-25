@@ -64,6 +64,8 @@ _downloader_options = [
     click.option("--max-score", type=int, default=None),
     click.option("--min-score-ratio", type=float, default=None),
     click.option("--max-score-ratio", type=float, default=None),
+    click.option("--imgur-originals", is_flag=True, default=None),
+    click.option("--imgur-fix404", is_flag=True, default=None),
 ]
 
 _archiver_options = [

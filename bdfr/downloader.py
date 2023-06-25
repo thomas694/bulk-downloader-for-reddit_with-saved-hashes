@@ -87,7 +87,7 @@ class RedditDownloader(RedditConnector):
             return
         try:
             downloader_class = DownloadFactory.pull_lever(submission.url)
-            downloader = downloader_class(submission)
+            downloader = downloader_class(submission, self.args)
             logger.debug(f"Using {downloader_class.__name__} with url {submission.url}")
         except errors.NotADownloadableLinkError as e:
             logger.error(f"Could not download submission {submission.id}: {e}")

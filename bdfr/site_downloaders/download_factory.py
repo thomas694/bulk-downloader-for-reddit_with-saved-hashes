@@ -4,6 +4,7 @@
 import re
 import urllib.parse
 
+from bdfr.configuration import Configuration
 from bdfr.exceptions import NotADownloadableLinkError
 from bdfr.site_downloaders.base_downloader import BaseDownloader
 from bdfr.site_downloaders.delay_for_reddit import DelayForReddit

@@ -8,6 +8,7 @@ from typing import Optional
 from bs4 import BeautifulSoup
 from praw.models import Submission
 
+from bdfr.configuration import Configuration
 from bdfr.exceptions import SiteDownloaderError
 from bdfr.resource import Resource
 from bdfr.site_authenticator import SiteAuthenticator
@@ -15,8 +16,8 @@ from bdfr.site_downloaders.redgifs import Redgifs
 
 
 class Gfycat(Redgifs):
-    def __init__(self, post: Submission):
-        super().__init__(post)
+    def __init__(self, post: Submission, args: Configuration):
+        super().__init__(post, args)
 
     def find_resources(self, authenticator: Optional[SiteAuthenticator] = None) -> list[Resource]:
         return super().find_resources(authenticator)
