@@ -24,7 +24,7 @@ class Imgur(BaseDownloader):
         self.raw_data = {}
 
     def find_resources(self, authenticator: Optional[SiteAuthenticator] = None) -> list[Resource]:
-        if re.search(r".*/i.imgur.com/[^/]*(.jpg|.png|.mp4)$", self.post.url):
+        if re.search(r".*/(i.|)imgur.com/[^/]*(.jpg|.jpeg|.png|.mp4)(\?1|)$", self.post.url):
             self.raw_data["link"] = self.post.url.replace("http://", "https://")
         else:
             try:
