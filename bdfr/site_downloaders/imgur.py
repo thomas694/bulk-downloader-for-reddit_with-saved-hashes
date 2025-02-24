@@ -10,7 +10,7 @@ from typing import Optional
 from praw.models import Submission
 
 from bdfr.configuration import Configuration
-from bdfr.exceptions import SiteDownloaderError
+from bdfr.exceptions import ResourceNotFound, SiteDownloaderError
 from bdfr.resource import Resource
 from bdfr.site_authenticator import SiteAuthenticator
 from bdfr.site_downloaders.base_downloader import BaseDownloader
@@ -83,8 +83,11 @@ class Imgur(BaseDownloader):
             "content-type": "application/json",
             "Authorization": "Client-ID 546c25a59c58ad7",
         }
-        res = Imgur.retrieve_url(link, headers=headers)
-
+        try:
+            res = Imgur.retrieve_url(link, headers=headers)
+        except ResourceNotFound as e:
+            raise SiteDownloaderError(f"Could not retrieve data: {e}")
+        
         try:
             image_dict = json.loads(res.text)
         except json.JSONDecodeError as e:
