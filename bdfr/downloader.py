@@ -41,6 +41,7 @@ class RedditDownloader(RedditConnector):
                     sleep(60)
         except Exception as e:
             logger.error(f"Uncaught exception: {e}")
+            logger.exception(e)
         if self.args.keep_hashes:
             self._hash_list_save(False)
 
