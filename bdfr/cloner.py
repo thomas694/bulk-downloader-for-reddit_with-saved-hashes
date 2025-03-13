@@ -34,11 +34,15 @@ class RedditCloner(RedditDownloader, Archiver):
                                     self.write_entry(submission)
                             except (prawcore.PrawcoreException, praw.exceptions.PRAWException) as e:
                                 logger.error(f"Submission {submission.id} failed to be cloned due to a PRAW exception: {e}")
+                            except Exception as e:
+                                logger.error(f"Unhandled exception downloading submission {submission.id}: {e}")
+                                logger.exception(e)
                     except (prawcore.PrawcoreException, praw.exceptions.PRAWException) as e:
                         logger.error(f"The submission after {submission.id} failed to download due to a PRAW exception: {e}")
                         logger.debug("Waiting 60 seconds to continue")
                         sleep(60)
         except Exception as e:
             logger.error(f"Uncaught exception: {e}")
+            logger.exception(e)
         if self.args.keep_hashes:
             self._hash_list_save(False)
