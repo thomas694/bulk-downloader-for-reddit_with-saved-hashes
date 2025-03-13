@@ -23,6 +23,8 @@ class RedditCloner(RedditDownloader, Archiver):
             for chunk in batched(generator, 100):
                 try:
                     submissions = self.load_submissions(chunk)
+                    if submissions is None:
+                        continue
                     for submission in submissions:
                         try:
                             self._download_submission(submission)
