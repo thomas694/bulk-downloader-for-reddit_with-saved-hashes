@@ -520,6 +520,8 @@ class RedditConnector(metaclass=ABCMeta):
 
     @staticmethod
     def _load_hash_list(directory: Path) -> (dict[str, Path], dict[str, str], dict[str, str]):
+        logger.info("Loading hashes...")
+        
         fn = os.path.join(directory, "hash_list.json")
         hash_list = {}
         if os.path.isfile(fn):
