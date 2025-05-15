@@ -39,6 +39,7 @@ class Configuration(Namespace):
         self.search: Optional[str] = None
         self.search_existing: bool = False
         self.keep_hashes: bool = False
+        self.keep_hashes_db: bool = False
         self.save_hashes_interval: int = 0
         self.skip: list[str] = []
         self.skip_domain: list[str] = []
