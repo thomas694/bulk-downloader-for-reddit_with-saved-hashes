@@ -70,8 +70,7 @@ class Archiver(RedditConnector):
         except Exception as e:
             logger.error(f"Uncaught exception: {e}")
             logger.exception(e)
-        if self.args.keep_hashes:
-            self._hash_list_save(False)
+        self._hash_list_save(False)
 
     def get_submissions_from_link(self) -> list[list[praw.models.Submission]]:
         supplied_submissions = []
@@ -126,15 +125,15 @@ class Archiver(RedditConnector):
             entry = self._pull_lever_entry_factory(praw_item, self.args.no_comments)
         if self.args.format == "json":
             content = json.dumps(entry.compile()) if self.args.ignore_score else content
-            hash = _calc_string_hash(content) if self.args.keep_hashes else None
+            hash = _calc_string_hash(content) if self.args.keep_hashes or self.args.keep_hashes_db else None
             self._write_entry_json(entry, content, hash)
         elif self.args.format == "xml":
             content = dict2xml.dict2xml(entry.compile(), wrap="root") if self.args.ignore_score else content
-            hash = _calc_string_hash(content) if self.args.keep_hashes else None
+            hash = _calc_string_hash(content) if self.args.keep_hashes or self.args.keep_hashes_db else None
             self._write_entry_xml(entry, content, hash)
         elif self.args.format == "yaml":
             content = yaml.safe_dump(entry.compile()) if self.args.ignore_score else content
-            hash = _calc_string_hash(content) if self.args.keep_hashes else None
+            hash = _calc_string_hash(content) if self.args.keep_hashes or self.args.keep_hashes_db else None
             self._write_entry_yaml(entry, content, hash)
 
     def _write_entry_json(self, entry: BaseArchiveEntry, content: str, hash: str):
@@ -152,14 +151,9 @@ class Archiver(RedditConnector):
     def _write_content_to_disk(self, resource: Resource, content: str, hash: str):
         file_path = self.file_name_formatter.format_path(resource, self.download_directory)
         
-        if self.args.keep_hashes:
-            if str(file_path) in self.master_file_list:
-                if hash == self.master_file_list[str(file_path)]:
-                    logger.debug(f"{resource.extension[1:].upper()} for {resource.source_submission.id} already saved before")
-                    return
-            self.master_hash_list[hash] = file_path
-            self.master_file_list[str(file_path)] = hash
-            self._hash_list_save(True)
+        if self._check_hash_exists_or_add(file_path, hash):
+            logger.debug(f"{resource.extension[1:].upper()} for {resource.source_submission.id} already saved before")
+            return
 
         file_path.parent.mkdir(exist_ok=True, parents=True)
         with Path(file_path).open(mode="w", encoding="utf-8") as file:

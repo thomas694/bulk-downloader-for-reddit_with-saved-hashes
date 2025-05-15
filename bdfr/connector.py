@@ -11,6 +11,7 @@ import logging.handlers
 import os
 import re
 import shutil
+import sqlite3
 import socket
 from abc import ABCMeta, abstractmethod
 from collections.abc import Callable, Iterable, Iterator
@@ -18,6 +19,7 @@ from datetime import datetime
 from enum import Enum, auto
 from multiprocessing import Pool
 from pathlib import Path
+from sqlite3 import Error, OperationalError
 from time import sleep
 
 import appdirs
@@ -67,6 +69,9 @@ def _calc_hash(existing_file: Path):
 
 
 class RedditConnector(metaclass=ABCMeta):
+
+    __HASH_DB_NAME = "hashes.sqlite"
+
     def __init__(self, args: Configuration, logging_handlers: Iterable[logging.Handler] = ()):
         self.args = args
         self.config_directories = appdirs.AppDirs("bdfr", "BDFR")
@@ -112,6 +117,9 @@ class RedditConnector(metaclass=ABCMeta):
 
         self.args.link = list(itertools.chain(self.args.link, self.read_id_files(self.args.include_id_file)))
 
+        self.__hash_db_conn = None
+        self.__check_hash_params()
+
         self.master_hash_list = {}
         self.__master_hash_list_cnt = self.__master_file_list_cnt = self.__master_url_list_cnt = 0
         self.authenticator = self.create_authenticator()
@@ -119,6 +127,118 @@ class RedditConnector(metaclass=ABCMeta):
 
         self.args.skip_subreddit = self.split_args_input(self.args.skip_subreddit)
         self.args.skip_subreddit = {sub.lower() for sub in self.args.skip_subreddit}
+
+    def __check_hash_params(self):
+        if self.args.keep_hashes_db:
+            fn = os.path.join(self.download_directory, self.__HASH_DB_NAME)
+            if self.args.keep_hashes:
+                # one-time conversion, if hash files and no db file yet
+                if not os.path.isfile(os.path.join(self.download_directory, "hash_list.json")):
+                    raise Exception("option '--keep-hashes' specified, but no hash files found")
+                elif os.path.isfile(fn):
+                    raise Exception("Cannot convert hash files, a hash DB already exists.")
+                else:
+                    self.__convert_hash_files_to_db(fn)
+            if not os.path.isfile(fn):
+                self.__create_hash_db(fn)
+            self.__open_hash_db(fn)
+            
+    def __convert_hash_files_to_db(self, db_path: Path):
+        self.__create_hash_db(db_path)
+
+        logger.info("Converting hash files...")
+        cursor = self.__hash_db_conn.cursor()
+        
+        fn = os.path.join(self.download_directory, "hash_list.json")
+        if os.path.isfile(fn):
+            with open(fn) as fp:
+                dict_json = json.load(fp)
+            data = [(key, os.fsencode(value)) for key, value in dict_json.items()]
+            logger.info(f"Loaded {len(dict_json)} hashes")
+            query = "INSERT INTO hashes(hash, file_path) VALUES (?, ?)"
+            try:
+                cursor.executemany(query, data)
+            except OperationalError as e:
+                logger.critical(f"Error occurred: '{e}'")
+            self.__hash_db_conn.commit()
+            logger.info(f"Converted {len(dict_json)} hashes")
+            dict_json = None
+        else:
+            raise Exception("hash_list.json missing")
+
+        fn = os.path.join(self.download_directory, "hash_file_list.json")
+        if os.path.isfile(fn):
+            with open(fn) as fp:
+                dict_json = json.load(fp)
+            data = [(os.fsencode(key), value) for key, value in dict_json.items()]
+            logger.info(f"Loaded {len(dict_json)} file entries")
+            query = "INSERT INTO hashes_file(file_path, hash) VALUES (?, ?)"
+            try:
+                cursor.executemany(query, data)
+            except OperationalError as e:
+                logger.critical(f"Error occurred: '{e}'")
+            self.__hash_db_conn.commit()
+            logger.info(f"Converted {len(dict_json)} file entries")
+            dict_json = None
+        else:
+            raise Exception("hash_file_list.json missing")
+        
+        fn = os.path.join(self.download_directory, "hash_url_list.json")
+        if os.path.isfile(fn):
+            with open(fn) as fp:
+                dict_json = json.load(fp)
+            data = [(key, value) for key, value in dict_json.items()]
+            logger.info(f"Loaded {len(dict_json)} url entries")
+            query = "INSERT INTO hashes_url(url, hash) VALUES (?, ?)"
+            try:
+                cursor.executemany(query, data)
+            except OperationalError as e:
+                logger.critical(f"Error occurred: '{e}'")
+            self.__hash_db_conn.commit()
+            logger.info(f"Converted {len(dict_json)} url entries")
+            dict_json = None
+        else:
+            raise Exception("hash_url_list.json missing")
+        
+        self.args.keep_hashes = False
+        
+    def __open_hash_db(self, path: Path):
+        try:
+            if self.__hash_db_conn is None:
+                self.__hash_db_conn = sqlite3.connect(path)
+        except Error as e:
+            logger.critical(f"Connection to SQLite DB failed: '{e}'")
+        
+    def __create_hash_db(self, path: Path):
+        self.__open_hash_db(path)
+
+        cursor = self.__hash_db_conn.cursor()
+        try:
+            query =  """
+            CREATE TABLE IF NOT EXISTS hashes (
+              hash TEXT PRIMARY KEY,
+              file_path TEXT NOT NULL
+            );
+            """
+            cursor.execute(query)
+            query =  """
+            CREATE TABLE IF NOT EXISTS hashes_file (
+              file_path TEXT PRIMARY KEY,
+              hash TEXT NOT NULL
+            );
+            """
+            cursor.execute(query)
+            query =  """
+            CREATE TABLE IF NOT EXISTS hashes_url (
+              url TEXT PRIMARY KEY,
+              hash TEXT NOT NULL
+            );
+            """
+            cursor.execute(query)
+            self.__hash_db_conn.commit()
+            logger.info("Hash tables created successfully")
+        except Error as e:
+            logger.critical(f"Error creating hash tables: '{e}'")
 
     @staticmethod
     def _apply_logging_handlers(handlers: Iterable[logging.Handler]):
@@ -574,7 +694,8 @@ class RedditConnector(metaclass=ABCMeta):
         logger.info(f"Saved {len(url_list)} url entries")
 
     def _hash_list_save(self, periodic: bool):
-        if (not periodic or periodic and self.args.save_hashes_interval > 0 
+        # no save necessary for keep_hashes_db, only for keep_hashes
+        if self.args.keep_hashes and (not periodic or periodic and self.args.save_hashes_interval > 0 
             and (len(self.master_hash_list) - self.__master_hash_list_cnt > self.args.save_hashes_interval or
                  len(self.master_file_list) - self.__master_file_list_cnt > self.args.save_hashes_interval or
                  len(self.master_url_list) - self.__master_url_list_cnt > self.args.save_hashes_interval) ):
@@ -582,3 +703,75 @@ class RedditConnector(metaclass=ABCMeta):
             self.__master_hash_list_cnt = len(self.master_hash_list)
             self.__master_file_list_cnt = len(self.master_file_list)
             self.__master_url_list_cnt = len(self.master_url_list)
+
+    def _check_hash_exists_or_add(self, file_path_obj: Path, hash: str):
+        file_path = str(file_path_obj)
+        if self.args.keep_hashes_db:
+            file_path = os.fsencode(file_path)
+            cursor = self.__hash_db_conn.cursor()
+            if file_path_obj is None:
+                query = "SELECT file_path FROM hashes WHERE hash = ?"
+                cursor.execute(query, [hash])
+                row = cursor.fetchone()
+                cursor.close()
+                return row is not None
+            query = "SELECT hash FROM hashes_file WHERE file_path = ?"
+            cursor.execute(query, [file_path])
+            hash_found = cursor.fetchone()
+            if hash_found and hash == hash_found[0]:
+                cursor.close()
+                return True
+            if hash is not None:
+                query = "INSERT OR REPLACE INTO hashes(hash, file_path) VALUES (?, ?)"
+                cursor.execute(query, (hash, file_path))
+                query = "INSERT OR REPLACE INTO hashes_file(file_path, hash) VALUES (?, ?)"
+                cursor.execute(query, (file_path, hash))
+                self.__hash_db_conn.commit()
+            cursor.close()
+        elif self.args.keep_hashes:
+            if file_path_obj is None:
+                return hash in self.master_hash_list
+            hash_found = self.master_file_list.get(file_path, None)
+            if hash_found is not None and hash == hash_found:
+                return True
+            if hash is not None:
+                self.master_hash_list[hash] = file_path
+                self.master_file_list[file_path] = hash
+                self._hash_list_save(True)
+        return False
+        
+    def _check_url_exists_or_add(self, url: str, hash: str):
+        if self.args.keep_hashes_db:
+            query = "SELECT hash FROM hashes_url WHERE url = ?"
+            cursor = self.__hash_db_conn.cursor()
+            cursor.execute(query, [url])
+            row = cursor.fetchone()
+            if row:
+                cursor.close()
+                return True
+            if hash is not None:
+                query = "INSERT INTO hashes_url(url, hash) VALUES (?, ?)"
+                cursor.execute(query, (url, hash))
+                self.__hash_db_conn.commit()
+            cursor.close()
+        elif self.args.keep_hashes:
+            if url in self.master_url_list:
+                return True
+            if hash is not None:
+                self.master_url_list[url] = hash
+                self._hash_list_save(True)
+        return False
+
+    def _get_hashed_item(self, hash: str) -> Path:
+        if self.args.keep_hashes_db:
+            query = "SELECT file_path FROM hashes WHERE hash = ?"
+            cursor = self.__hash_db_conn.cursor()
+            cursor.execute(query, [hash])
+            row = cursor.fetchone()
+            cursor.close()
+            if row:
+                return Path(os.fsdecode(row[0]))
+            else:
+                return None
+        else:
+            return self.master_hash_list[hash]

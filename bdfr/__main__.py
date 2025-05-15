@@ -56,6 +56,7 @@ _downloader_options = [
     click.option("--no-dupes", is_flag=True, default=None),
     click.option("--search-existing", is_flag=True, default=None),
     click.option("--keep-hashes", is_flag=True, default=None),
+    click.option("--keep-hashes-db", is_flag=True, default=None),
     click.option("--save-hashes-interval", type=click.IntRange(10, 1000), default=None),
     click.option("--skip", default=None, multiple=True),
     click.option("--skip-domain", default=None, multiple=True),

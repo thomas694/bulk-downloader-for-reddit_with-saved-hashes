@@ -42,8 +42,7 @@ class RedditDownloader(RedditConnector):
         except Exception as e:
             logger.error(f"Uncaught exception: {e}")
             logger.exception(e)
-        if self.args.keep_hashes:
-            self._hash_list_save(False)
+        self._hash_list_save(False)
 
     def _download_submission(self, submission: praw.models.Submission):
         if submission.id in self.excluded_submission_ids:
@@ -108,7 +107,7 @@ class RedditDownloader(RedditConnector):
             elif not self.download_filter.check_resource(res):
                 logger.debug(f"Download filter removed {submission.id} file with URL {submission.url}")
                 continue
-            if self.args.keep_hashes and res.url in self.master_url_list:
+            if self._check_url_exists_or_add(res.url, None):
                 logger.debug(f"Url {res.url} from submission {submission.id} in {submission.subreddit.display_name} already downloaded before")
                 continue
 
@@ -122,20 +121,21 @@ class RedditDownloader(RedditConnector):
                 return
             resource_hash = res.hash.hexdigest()
             destination.parent.mkdir(parents=True, exist_ok=True)
-            if resource_hash in self.master_hash_list:
-                if self.args.keep_hashes:
-                    self.master_url_list[res.url] = resource_hash
+            if ((self.args.keep_hashes or self.args.keep_hashes_db) and self._check_hash_exists_or_add(None, resource_hash) or 
+                (not self.args.keep_hashes and not self.args.keep_hashes_db) and resource_hash in self.master_hash_list):
+                self._check_url_exists_or_add(res.url, resource_hash)
                 if self.args.no_dupes:
                     logger.info(f"Resource hash {resource_hash} from submission {submission.id} downloaded elsewhere")
                     logger.debug(f"URL: {res.url}")
                     return
                 elif self.args.make_hard_links:
+                    hashed_item = self._get_hashed_item(resource_hash)
                     try:
-                        destination.hardlink_to(self.master_hash_list[resource_hash])
+                        destination.hardlink_to(hashed_item)
                     except AttributeError:
-                        self.master_hash_list[resource_hash].link_to(destination)
+                        hashed_item.link_to(destination)
                     logger.info(
-                        f"Hard link made linking {destination} to {self.master_hash_list[resource_hash]}"
+                        f"Hard link made linking {destination} to {hashed_item}"
                         f" in submission {submission.id}"
                     )
                     return
@@ -150,8 +150,9 @@ class RedditDownloader(RedditConnector):
                 return
             creation_time = time.mktime(datetime.fromtimestamp(submission.created_utc).timetuple())
             os.utime(destination, (creation_time, creation_time))
-            self.master_hash_list[resource_hash] = destination
-            if self.args.keep_hashes:
-                self.master_url_list[res.url] = resource_hash
-                self._hash_list_save(True)
+            if self.args.keep_hashes or self.args.keep_hashes_db:
+                self._check_hash_exists_or_add(destination, resource_hash)
+            else:
+                self.master_hash_list[resource_hash] = destination
+            self._check_url_exists_or_add(res.url, resource_hash)
             logger.debug(f"Hash added to master list: {resource_hash}")
