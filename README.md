@@ -28,6 +28,11 @@ This option saves the hashes to three files `hash_list.json`, `hash_file_list.js
 If the contents of your files regularly change outside these runs for any reason, don't use it as it is not searching for modified files locally. If it's an intended one time change you can just drop the two json files `hash_list.json` and `hash_file_list.json` and start with a full scan again.
 Obviously, if you use this option, you shouldn't run multiple instances concurrently to download to the same folder.
 
+#### --keep-hashes-db
+
+This option saves the hashes in a SQLite database instead of in the three mentioned files.
+If both the `--keep-hashes` and `--keep-hashes-db` options are specified, the hash files are converted to a db file once. After that, always use the new `--keep-hashes-db` option.
+
 #### --save-hashes-interval
 
 By default, the hash list files are loaded at start and written at the end. As BDFR can be unexpectedly interrupted, you can specify after how many added hashes the files are additionally written to disk. Specify a value between 10 and 1000.
