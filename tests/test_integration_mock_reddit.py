@@ -25,12 +25,13 @@ class TestDownloadFilteringIntegration:
         """Test score-based filtering with mock submissions"""
         submissions = MockSubmissionGenerator.create_diverse_submissions(100)
         
-        min_score = 50
+        # Use a threshold that filters out ~50% of submissions (10-10000 range)
+        min_score = 500
         filtered_submissions = [s for s in submissions if s.score >= min_score]
         
-        assert len(filtered_submissions) > 0
+        assert len(filtered_submissions) > 0, "Should find submissions with scores >= 500"
         assert all(s.score >= min_score for s in filtered_submissions)
-        assert len(filtered_submissions) < len(submissions)
+        assert len(filtered_submissions) < len(submissions), "Should filter out some submissions"
 
     def test_subreddit_filtering_integration(self):
         """Test subreddit-based filtering"""
@@ -229,16 +230,16 @@ class TestFilteringOptimizationIntegration:
         for sub in submissions:
             checked += 1
             
-            # Apply filters and early exit
-            if sub.score < 50:
+            # Apply filters and early exit (more restrictive thresholds)
+            if sub.score < 5000:  # Most won't pass this
                 continue
-            if sub.upvote_ratio < 0.7:
+            if sub.upvote_ratio < 0.9:
                 continue
             
             processed += 1
         
         assert checked == len(submissions)
-        assert processed < len(submissions)
+        assert processed < len(submissions), "Some submissions should be filtered out"
 
 
 class TestCachingIntegration:

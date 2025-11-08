@@ -257,6 +257,8 @@ class MockSubmissionGenerator:
             submission = MockSubmissionFactory.create_submission(
                 submission_id=f"diverse_{i:06d}",
                 subreddit=subreddit,
+                score=random.randint(10, 10000),  # Diverse score range
+                upvote_ratio=round(random.uniform(0.5, 1.0), 2),
                 **content
             )
             submissions.append(submission)
