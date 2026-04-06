@@ -32,7 +32,7 @@ from bdfr import exceptions as errors
 from bdfr.configuration import Configuration
 from bdfr.download_filter import DownloadFilter
 from bdfr.file_name_formatter import FileNameFormatter
-from bdfr.oauth2 import OAuth2Authenticator, OAuth2TokenManager
+from bdfr.oauth2 import OAuth2Authenticator
 from bdfr.site_authenticator import SiteAuthenticator
 
 logger = logging.getLogger(__name__)
@@ -291,14 +291,13 @@ class RedditConnector(metaclass=ABCMeta):
                 self.cfg_parser["DEFAULT"]["user_token"] = token
                 with Path(self.config_location).open(mode="w") as file:
                     self.cfg_parser.write(file, True)
-            token_manager = OAuth2TokenManager(self.cfg_parser, self.config_location)
 
             self.authenticated = True
             self.reddit_instance = praw.Reddit(
                 client_id=self.cfg_parser.get("DEFAULT", "client_id"),
                 client_secret=self.cfg_parser.get("DEFAULT", "client_secret"),
                 user_agent=socket.gethostname(),
-                token_manager=token_manager,
+                refresh_token=self.cfg_parser.get("DEFAULT", "user_token"),
             )
         else:
             logger.debug("Using unauthenticated Reddit instance")

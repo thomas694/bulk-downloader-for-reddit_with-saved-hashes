@@ -8,8 +8,6 @@ from pathlib import Path
 import praw
 import pytest
 
-from bdfr.oauth2 import OAuth2TokenManager
-
 
 @pytest.fixture(scope="session")
 def reddit_instance():
@@ -30,11 +28,10 @@ def authenticated_reddit_instance():
     cfg_parser.read(test_config_path)
     if not cfg_parser.has_option("DEFAULT", "user_token"):
         pytest.skip("Refresh token must be provided to authenticate with OAuth2")
-    token_manager = OAuth2TokenManager(cfg_parser, test_config_path)
     reddit_instance = praw.Reddit(
         client_id=cfg_parser.get("DEFAULT", "client_id"),
         client_secret=cfg_parser.get("DEFAULT", "client_secret"),
         user_agent=socket.gethostname(),
-        token_manager=token_manager,
+        refresh_token=cfg_parser.get("DEFAULT", "user_token"),
     )
     return reddit_instance
