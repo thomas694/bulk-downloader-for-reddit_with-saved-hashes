@@ -17,17 +17,19 @@ logger = logging.getLogger(__name__)
 
 
 class OAuth2Authenticator:
-    def __init__(self, wanted_scopes: set[str], client_id: str, client_secret: str):
+    def __init__(self, wanted_scopes: set[str], client_id: str, client_secret: str, user_agent: str = "obtain_refresh_token for BDFR"):
         self._check_scopes(wanted_scopes)
         self.scopes = wanted_scopes
         self.client_id = client_id
         self.client_secret = client_secret
+        self.user_agent = user_agent
 
     @staticmethod
     def _check_scopes(wanted_scopes: set[str]):
         response = requests.get(
             "https://www.reddit.com/api/v1/scopes.json", headers={"User-Agent": "fetch-scopes test"}
         )
+        response.raise_for_status()
         known_scopes = [scope for scope, data in response.json().items()]
         known_scopes.append("*")
         for scope in wanted_scopes:
@@ -42,7 +44,7 @@ class OAuth2Authenticator:
     def retrieve_new_token(self) -> str:
         reddit = praw.Reddit(
             redirect_uri="http://localhost:7634",
-            user_agent="obtain_refresh_token for BDFR",
+            user_agent=self.user_agent,
             client_id=self.client_id,
             client_secret=self.client_secret,
         )
